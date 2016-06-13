@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/go-shaper/shaper"
 )
 
 var (
@@ -87,6 +88,18 @@ type ScrapeConfig struct {
 	// being aborted - this can be useful if you need to ensure that a given Piece
 	// is required, for example.
 	Pieces []Piece
+
+	// PieceShaper enables user to use a generic way to define how they want to
+	// shape (transform) the extracted pieces. E.g.,
+	// To trim all leading and trailing white spaces,
+	//     PieceShaper: shaper.NewFilter().ApplyTrim(),
+	// To trim all leading and trailing white spaces as well as to regulate
+	// the spaces so that they are delimited by only a single-space,
+	//     PieceShaper: shaper.NewFilter().ApplyTrim().ApplyRegSpaces(),
+	// To define your own shaping method, refer to
+	// https://godoc.org/github.com/go-shaper/shaper#example-Shaper
+	// https://github.com/go-shaper/shaper/blob/master/shaper_test.go#L77
+	PieceShaper *shaper.Shaper
 }
 
 func (c *ScrapeConfig) clone() *ScrapeConfig {
@@ -169,7 +182,7 @@ func New(c *ScrapeConfig) (*Scraper, error) {
 	}
 
 	// Clone the configuration and fill in the defaults.
-	config := c.clone()
+	config := c //.clone()
 	if config.Paginator == nil {
 		config.Paginator = dummyPaginator{}
 	}
@@ -264,7 +277,8 @@ func (s *Scraper) ScrapeWithOpts(url string, opts ScrapeOptions) (*ScrapeResults
 					continue
 				}
 
-				blockResults[piece.Name] = pieceResults
+				blockResults[piece.Name] =
+					s.config.PieceShaper.Process(pieceResults.(string))
 			}
 
 			// Append the results from this block.
