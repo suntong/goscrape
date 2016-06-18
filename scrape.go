@@ -89,6 +89,8 @@ type ScrapeConfig struct {
 	// is required, for example.
 	Pieces []Piece
 
+	Opts ScrapeOptions
+
 	// PieceShaper enables user to use a generic way to define how they want to
 	// shape (transform) the extracted pieces. E.g.,
 	// To trim all leading and trailing white spaces,
@@ -204,20 +206,14 @@ func New(c *ScrapeConfig) (*Scraper, error) {
 	return ret, nil
 }
 
-// Scrape a given URL with default options.  See 'ScrapeWithOpts' for more
-// information.
-func (s *Scraper) Scrape(url string) (*ScrapeResults, error) {
-	return s.ScrapeWithOpts(url, DefaultOptions)
-}
-
-// Actually start scraping at the given URL.
-//
+// Scrape a given URL with default options.
 // Note that, while this function and the Scraper in general are safe for use
 // from multiple goroutines, making multiple requests in parallel can cause
 // strange behaviour - e.g. overwriting cookies in the underlying http.Client.
 // Please be careful when running multiple scrapes at a time, unless you know
 // that it's safe.
-func (s *Scraper) ScrapeWithOpts(url string, opts ScrapeOptions) (*ScrapeResults, error) {
+func (s *Scraper) Scrape(url string) (*ScrapeResults, error) {
+
 	if len(url) == 0 {
 		return nil, errors.New("no URL provided")
 	}
@@ -233,6 +229,7 @@ func (s *Scraper) ScrapeWithOpts(url string, opts ScrapeOptions) (*ScrapeResults
 		Results: [][]map[string]interface{}{},
 	}
 
+	opts := s.config.Opts
 	var numPages int
 	for {
 		// Repeat until we don't have any more URLs, or until we hit our page limit.
