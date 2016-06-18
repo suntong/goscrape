@@ -47,8 +47,12 @@ type Piece struct {
 	// The name of this piece.  Required, and will be used to aggregate results.
 	Name string
 
-	// A sub-selector within the given block to process.  Pass in "." to use
-	// the root block's selector with no modification.
+	// A sub-selector within the given block to process.
+	// - Pass in "." to use the root block's selector's content with no
+	//   modification.
+	// - Pass in "&" to get the root block's selector variable in type of
+	//   `*goquery.Selection` as the result, which can be used for further
+	//   customized processing
 	Selector string
 	// TODO(andrew-d): Consider making this an interface too.
 
@@ -287,6 +291,12 @@ func (s *Scraper) Scrape(url, initHTML string) (*ScrapeResults, error) {
 			// Process each piece of this block
 			for _, piece := range s.config.Pieces {
 				sel := block
+				if piece.Selector == "&" {
+					// return sel as-is as the result
+					blockResults[piece.Name] = sel
+					continue
+				}
+
 				if piece.Selector != "." {
 					sel = sel.Find(piece.Selector)
 				}
