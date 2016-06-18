@@ -3,6 +3,7 @@ package scrape
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-shaper/shaper"
@@ -206,18 +207,29 @@ func New(c *ScrapeConfig) (*Scraper, error) {
 	return ret, nil
 }
 
-// Scrape a given URL with default options.
+// ScrapeUrl starts scraping from the given URL
 // Note that, while this function and the Scraper in general are safe for use
 // from multiple goroutines, making multiple requests in parallel can cause
 // strange behaviour - e.g. overwriting cookies in the underlying http.Client.
 // Please be careful when running multiple scrapes at a time, unless you know
 // that it's safe.
-func (s *Scraper) Scrape(url string) (*ScrapeResults, error) {
-
+func (s *Scraper) ScrapeUrl(url string) (*ScrapeResults, error) {
 	if len(url) == 0 {
 		return nil, errors.New("no URL provided")
 	}
+	return s.Scrape(url, "")
+}
 
+// ScrapeHTML starts scraping from the given initial HTML than a URL
+func (s *Scraper) ScrapeHTML(html string) (*ScrapeResults, error) {
+	if len(html) == 0 {
+		return nil, errors.New("no HTML provided")
+	}
+	return s.Scrape("", html)
+}
+
+// Scrape starts scraping from URL, or the initial HTML if URL is empty
+func (s *Scraper) Scrape(url, initHTML string) (*ScrapeResults, error) {
 	// Prepare the fetcher.
 	err := s.config.Fetcher.Prepare()
 	if err != nil {
@@ -229,24 +241,40 @@ func (s *Scraper) Scrape(url string) (*ScrapeResults, error) {
 		Results: [][]map[string]interface{}{},
 	}
 
+	initUsed := false
 	opts := s.config.Opts
-	var numPages int
+	numPages := 0
 	for {
 		// Repeat until we don't have any more URLs, or until we hit our page limit.
-		if len(url) == 0 || (opts.MaxPages > 0 && numPages >= opts.MaxPages) {
+		if opts.MaxPages > 0 && numPages >= opts.MaxPages {
 			break
 		}
 
-		resp, err := s.config.Fetcher.Fetch("GET", url)
-		if err != nil {
-			return nil, err
-		}
-
 		// Create a goquery document.
-		doc, err := goquery.NewDocumentFromReader(resp)
-		resp.Close()
-		if err != nil {
-			return nil, err
+		var doc *goquery.Document
+		if len(url) == 0 {
+			if initUsed {
+				println("***** Internal Error: url empty *****")
+				break
+			} else {
+				var err error
+				r := strings.NewReader(initHTML)
+				doc, err = goquery.NewDocumentFromReader(r)
+				if err != nil {
+					return nil, err
+				}
+				initUsed = true
+			}
+		} else {
+			resp, err := s.config.Fetcher.Fetch("GET", url)
+			if err != nil {
+				return nil, err
+			}
+			doc, err = goquery.NewDocumentFromReader(resp)
+			resp.Close()
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		res.URLs = append(res.URLs, url)
