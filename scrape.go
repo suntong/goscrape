@@ -258,7 +258,7 @@ func (s *Scraper) Scrape(url, initHTML string) (*ScrapeResults, error) {
 		var doc *goquery.Document
 		if len(url) == 0 {
 			if initUsed {
-				println("***** Internal Error: url empty *****")
+				// rurl empty, eached the end.
 				break
 			} else {
 				var err error
