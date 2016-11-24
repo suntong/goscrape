@@ -119,6 +119,10 @@ func (c *ScrapeConfig) clone() *ScrapeConfig {
 	return ret
 }
 
+// ResultsT describes each Piece of each page.
+// It is the mapping of Piece.Name to results.
+type ResultsT map[string]interface{}
+
 // ScrapeResults describes the results of a scrape.  It contains a list of all
 // pages (URLs) visited during the process, along with all results generated
 // from each Piece in each page.
@@ -130,7 +134,7 @@ type ScrapeResults struct {
 	// The results from each Piece of each page.  Essentially, the top-level array
 	// is for each page, the second-level array is for each block in a page, and
 	// the final map[string]interface{} is the mapping of Piece.Name to results.
-	Results [][]map[string]interface{}
+	Results [][]ResultsT
 }
 
 // First returns the first set of results - i.e. the results from the first
@@ -242,7 +246,7 @@ func (s *Scraper) Scrape(url, initHTML string) (*ScrapeResults, error) {
 
 	res := &ScrapeResults{
 		URLs:    []string{},
-		Results: [][]map[string]interface{}{},
+		Results: [][]ResultsT{},
 	}
 
 	initUsed := false
@@ -282,7 +286,7 @@ func (s *Scraper) Scrape(url, initHTML string) (*ScrapeResults, error) {
 		}
 
 		res.URLs = append(res.URLs, url)
-		results := []map[string]interface{}{}
+		results := []ResultsT{}
 
 		// Divide this page into blocks
 		for _, block := range s.config.DividePage(doc.Selection) {
