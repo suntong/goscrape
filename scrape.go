@@ -74,6 +74,11 @@ type ScrapeConfig struct {
 	// the initial URL is the only page.
 	Paginator Paginator
 
+	// PageSigSel is the Page Signature for this current scrape.
+	//
+	// It normally resides outside the following individual 'blocks' in the page.
+	PageSigSel []Piece
+
 	// DividePage splits a page into individual 'blocks'.  When scraping, we treat
 	// each page as if it contains some number of 'blocks', each of which can be
 	// further subdivided into what actually needs to be extracted.
@@ -115,6 +120,7 @@ func (c *ScrapeConfig) clone() *ScrapeConfig {
 		Paginator:  c.Paginator,
 		DividePage: c.DividePage,
 		Pieces:     c.Pieces,
+		PageSigSel: c.PageSigSel,
 	}
 	return ret
 }
@@ -166,6 +172,8 @@ func (r *ScrapeResults) AllBlocks() []map[string]interface{} {
 
 type Scraper struct {
 	config *ScrapeConfig
+	// PageSigs hold the scrapped Page Signature(s)
+	PageSigs map[string]interface{}
 }
 
 // Create a new scraper with the provided configuration.
@@ -288,38 +296,21 @@ func (s *Scraper) Scrape(url, initHTML string) (*ScrapeResults, error) {
 		res.URLs = append(res.URLs, url)
 		results := []ResultsT{}
 
+		if len(s.config.PageSigSel) != 0 {
+			dividePage := DividePageBySelector("body")
+			block := dividePage(doc.Selection)
+			s.PageSigs, err = s.ScrapePieces(block[0], s.config.PageSigSel)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		// Divide this page into blocks
 		for _, block := range s.config.DividePage(doc.Selection) {
-			blockResults := map[string]interface{}{}
-
-			// Process each piece of this block
-			for _, piece := range s.config.Pieces {
-				sel := block
-				if piece.Selector == "&" {
-					// return sel as-is as the result
-					blockResults[piece.Name] = sel
-					continue
-				}
-
-				if piece.Selector != "." {
-					sel = sel.Find(piece.Selector)
-				}
-
-				pieceResults, err := piece.Extractor.Extract(sel)
-				if err != nil {
-					return nil, err
-				}
-
-				// A nil response from an extractor means that we don't even include it in
-				// the results.
-				if pieceResults == nil {
-					continue
-				}
-
-				blockResults[piece.Name] =
-					s.config.PieceShaper.Process(pieceResults.(string))
+			blockResults, err := s.ScrapePieces(block, s.config.Pieces)
+			if err != nil {
+				return nil, err
 			}
-
 			// Append the results from this block.
 			results = append(results, blockResults)
 		}
@@ -337,4 +328,37 @@ func (s *Scraper) Scrape(url, initHTML string) (*ScrapeResults, error) {
 
 	// All good!
 	return res, nil
+}
+
+func (s *Scraper) ScrapePieces(block *goquery.Selection, Pieces []Piece) (map[string]interface{}, error) {
+	blockResults := map[string]interface{}{}
+
+	// Process each piece of this block
+	for _, piece := range Pieces {
+		sel := block
+		if piece.Selector == "&" {
+			// return sel as-is as the result
+			blockResults[piece.Name] = sel
+			continue
+		}
+
+		if piece.Selector != "." {
+			sel = sel.Find(piece.Selector)
+		}
+
+		pieceResults, err := piece.Extractor.Extract(sel)
+		if err != nil {
+			return nil, err
+		}
+
+		// A nil response from an extractor means that we don't even include it in
+		// the results.
+		if pieceResults == nil {
+			continue
+		}
+
+		blockResults[piece.Name] =
+			s.config.PieceShaper.Process(pieceResults.(string))
+	}
+	return blockResults, nil
 }
