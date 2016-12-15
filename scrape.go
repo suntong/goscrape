@@ -297,12 +297,16 @@ func (s *Scraper) Scrape(url, initHTML string) (*ScrapeResults, error) {
 		results := []ResultsT{}
 
 		if len(s.config.PageSigSel) != 0 {
-			dividePage := DividePageBySelector("body")
-			block := dividePage(doc.Selection)
-			s.PageSigs, err = s.ScrapePieces(block[0], s.config.PageSigSel)
+			block := doc.Find("body") // .Eq(0)
+			//f, _ := block.Find("form").Attr("action")
+			// f := block.Find("table[id$=ProductList]>tbody>tr:first-child>td:first-child span.productDesc").Text()
+			// fmt.Printf("] %+v\n", f)
+
+			s.PageSigs, err = s.ScrapePieces(block, s.config.PageSigSel)
 			if err != nil {
 				return nil, err
 			}
+			fmt.Printf("]> s.PageSigs: %+v\n", s.PageSigs)
 		}
 
 		// Divide this page into blocks
@@ -345,11 +349,13 @@ func (s *Scraper) ScrapePieces(block *goquery.Selection, Pieces []Piece) (map[st
 		if piece.Selector != "." {
 			sel = sel.Find(piece.Selector)
 		}
+		//fmt.Printf("> %s: %+v\n", piece.Selector, sel.Text())
 
 		pieceResults, err := piece.Extractor.Extract(sel)
 		if err != nil {
 			return nil, err
 		}
+		//fmt.Printf("> %s: %+v\n", piece.Selector, pieceResults)
 
 		// A nil response from an extractor means that we don't even include it in
 		// the results.
@@ -359,6 +365,13 @@ func (s *Scraper) ScrapePieces(block *goquery.Selection, Pieces []Piece) (map[st
 
 		blockResults[piece.Name] =
 			s.config.PieceShaper.Process(pieceResults.(string))
+		//fmt.Printf("> %s: %+v\n", piece.Selector, blockResults)
 	}
 	return blockResults, nil
+}
+
+// GetSig get Page Signature(s)
+func (s *Scraper) GetSig() map[string]interface{} {
+	fmt.Printf("} s.PageSigs: %+v\n", s.PageSigs)
+	return s.PageSigs
 }
