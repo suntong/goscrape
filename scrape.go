@@ -148,7 +148,7 @@ type ScrapeResults struct {
 //
 // This function can return nil if there were no blocks found on the first page
 // of the scrape.
-func (r *ScrapeResults) First() map[string]interface{} {
+func (r *ScrapeResults) First() ResultsT {
 	if len(r.Results[0]) == 0 {
 		return nil
 	}
@@ -158,8 +158,8 @@ func (r *ScrapeResults) First() map[string]interface{} {
 
 // AllBlocks returns a single list of results from every block on all pages.
 // This function will always return a list, even if no blocks were found.
-func (r *ScrapeResults) AllBlocks() []map[string]interface{} {
-	ret := []map[string]interface{}{}
+func (r *ScrapeResults) AllBlocks() []ResultsT {
+	ret := []ResultsT{}
 
 	for _, page := range r.Results {
 		for _, block := range page {
@@ -173,7 +173,7 @@ func (r *ScrapeResults) AllBlocks() []map[string]interface{} {
 type Scraper struct {
 	config *ScrapeConfig
 	// PageSigs hold the scrapped Page Signature(s)
-	PageSigs map[string]interface{}
+	PageSigs ResultsT
 }
 
 // Create a new scraper with the provided configuration.
@@ -266,6 +266,7 @@ func (s *Scraper) Scrape(url, initHTML string) (*ScrapeResults, error) {
 			break
 		}
 
+		//fmt.Printf("]0> s.PageSigs: %+v\n", s.PageSigs)
 		// Create a goquery document.
 		var doc *goquery.Document
 		if len(url) == 0 {
@@ -279,7 +280,6 @@ func (s *Scraper) Scrape(url, initHTML string) (*ScrapeResults, error) {
 				if err != nil {
 					return nil, err
 				}
-				initUsed = true
 			}
 		} else {
 			resp, err := s.config.Fetcher.Fetch("GET", url)
@@ -297,16 +297,13 @@ func (s *Scraper) Scrape(url, initHTML string) (*ScrapeResults, error) {
 		results := []ResultsT{}
 
 		if len(s.config.PageSigSel) != 0 {
-			block := doc.Find("body") // .Eq(0)
-			//f, _ := block.Find("form").Attr("action")
-			// f := block.Find("table[id$=ProductList]>tbody>tr:first-child>td:first-child span.productDesc").Text()
-			// fmt.Printf("] %+v\n", f)
-
+			block := doc.Find("body")
+			//fmt.Printf("]-> s.PageSigs: %+v (%d, %s)\n", s.PageSigs, numPages, url)
 			s.PageSigs, err = s.ScrapePieces(block, s.config.PageSigSel)
 			if err != nil {
 				return nil, err
 			}
-			fmt.Printf("]> s.PageSigs: %+v\n", s.PageSigs)
+			//fmt.Printf("]+> s.PageSigs: %+v\n", s.PageSigs)
 		}
 
 		// Divide this page into blocks
@@ -321,6 +318,7 @@ func (s *Scraper) Scrape(url, initHTML string) (*ScrapeResults, error) {
 
 		// Append the results from this page.
 		res.Results = append(res.Results, results)
+		initUsed = true
 		numPages++
 
 		// Get the next page.
@@ -330,12 +328,13 @@ func (s *Scraper) Scrape(url, initHTML string) (*ScrapeResults, error) {
 		}
 	}
 
+	//fmt.Printf("]1> s.PageSigs: %+v\n", s.PageSigs)
 	// All good!
 	return res, nil
 }
 
-func (s *Scraper) ScrapePieces(block *goquery.Selection, Pieces []Piece) (map[string]interface{}, error) {
-	blockResults := map[string]interface{}{}
+func (s *Scraper) ScrapePieces(block *goquery.Selection, Pieces []Piece) (ResultsT, error) {
+	blockResults := ResultsT{}
 
 	// Process each piece of this block
 	for _, piece := range Pieces {
@@ -371,7 +370,7 @@ func (s *Scraper) ScrapePieces(block *goquery.Selection, Pieces []Piece) (map[st
 }
 
 // GetSig get Page Signature(s)
-func (s *Scraper) GetSig() map[string]interface{} {
-	fmt.Printf("} s.PageSigs: %+v\n", s.PageSigs)
+func (s *Scraper) GetSig() ResultsT {
+	//fmt.Printf("} s.PageSigs: %+v\n", s.PageSigs)
 	return s.PageSigs
 }
