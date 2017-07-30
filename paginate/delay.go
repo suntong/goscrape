@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/andrew-d/goscrape"
+	"github.com/suntong/goscrape"
 )
 
 type withDelayPaginator struct {

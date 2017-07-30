@@ -7,7 +7,7 @@ import (
 	"regexp"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/andrew-d/goscrape"
+	"github.com/suntong/goscrape"
 	"golang.org/x/net/html"
 )
 

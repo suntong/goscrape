@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/andrew-d/goscrape"
+	"github.com/suntong/goscrape"
 )
 
 // RelUrl is a helper function that aids in calculating the absolute URL from a
