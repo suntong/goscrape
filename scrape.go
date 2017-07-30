@@ -3,6 +3,7 @@ package scrape
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -362,8 +363,15 @@ func (s *Scraper) ScrapePieces(block *goquery.Selection, Pieces []Piece) (Result
 			continue
 		}
 
-		blockResults[piece.Name] =
-			s.config.PieceShaper.Process(pieceResults.(string))
+		if regexp.MustCompile(`HTML$`).MatchString(piece.Name) {
+			// Variable name ends with "HTML",
+			// return the result as-si without further processing
+			blockResults[piece.Name] = pieceResults.(string)
+		} else {
+			// else, process with PieceShaper
+			blockResults[piece.Name] =
+				s.config.PieceShaper.Process(pieceResults.(string))
+		}
 		//fmt.Printf("> %s: %+v\n", piece.Selector, blockResults)
 	}
 	return blockResults, nil
